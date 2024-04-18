@@ -1,5 +1,6 @@
 import pandas as pd 
 from numpy import log10
+from sklearn.preprocessing import StandardScaler
 
 from generics import Generics
 
@@ -36,4 +37,23 @@ def log_transform(df:pd.DataFrame, columns=None):
             v = log10(v)
         df[:, target_idx] = v
     return df 
+
+
+def get_scaler(df:pd.DataFrame, columns=None): 
+    '''
+    Fits scaler based on columns, if provided, otherwise will use target columns 
+    Takes: 
+        df: DataFrame 
+        columns: list of columns to fit scaler on 
+    Returns: 
+        fitted sklearn.preprocessing.StandardScaler instance
+    '''
+    scaler = StandardScaler()
+    if columns is None:
+        df = df[Generics.TARGET_COLUMNS]
+    else: 
+        df = df[columns]
+    df = scaler.fit(df)
+    return scaler
+
 
