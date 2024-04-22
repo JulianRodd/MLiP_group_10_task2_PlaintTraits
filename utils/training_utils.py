@@ -68,6 +68,7 @@ def train(model, optimizer, config, scheduler, dataloader_train, dataloader_val,
 
     for epoch in range(config.N_EPOCHS):
         model, scheduler, optimizer = train_epoch(MAE, R2, LOSS, model, dataloader_train, loss_fn, optimizer, scheduler, config, epoch, global_y_mean)
+        torch.cuda.empty_cache()
         val_epoch(MAE, R2, LOSS, model, dataloader_val, loss_fn, config, epoch, global_y_mean)
 
     torch.save(model, 'model.pth')
@@ -127,7 +128,7 @@ def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None):
 
 def get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None): 
     string  = f'{mode} logging'.upper() + \
-        f'\rEPOCH {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
+        f'\rEPOCH[{mode}] {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
         f'loss: {LOSS.avg:.4f}, mae: {MAE.compute().item():.4f}, r2: {R2.compute().item():.4f}, ' 
     
     if mode == 'train':
