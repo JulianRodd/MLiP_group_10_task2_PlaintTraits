@@ -1,12 +1,13 @@
 import pandas as pd 
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import imageio
+from sklearn.model_selection import train_test_split
 
 from generics import Generics
 
 
-def prep_dataset(filepath):
+def prep_dataset(filepath, size=None, train_size=0.2, seed=42):
     '''
     Takes:
       filepath to csv file 
@@ -14,9 +15,16 @@ def prep_dataset(filepath):
         pd.DataFrame with filepaths for images and jpeg bytes added
     '''
     df = pd.read_csv(filepath)
+    if size is not None:
+        df = df.sample(train_size, random_state=seed)
+    
     df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
     df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
-    return df 
+    
+    if train_size is not None: 
+        train, val = train_test_split(df, train_size=train_size, random_state=seed)
+
+    return train, val
 
 
 class Dataset(Dataset):
