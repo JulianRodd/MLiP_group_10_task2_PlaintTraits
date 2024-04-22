@@ -16,7 +16,7 @@ def prep_dataset(filepath, size=None, train_size=0.2, seed=42):
     '''
     df = pd.read_csv(filepath)
     if size is not None:
-        df = df.sample(train_size, random_state=seed)
+        df = df.sample(size, random_state=seed)
     
     df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
     df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
