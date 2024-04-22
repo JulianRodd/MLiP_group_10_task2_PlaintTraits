@@ -15,7 +15,7 @@ def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
       train_size: fraction of data to be used for training 
       seed: seed for subsampling and splititng 
     Returns: 
-        pd.DataFrame with filepaths for images and jpeg bytes added
+        pd.DataFrame with filepaths for images and jpeg bytes added + values for X4 filtered for >0
     '''
     df = pd.read_csv(filepath)
     if size is not None:
@@ -26,6 +26,9 @@ def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
     
     if train_size is not None: 
         train, val = train_test_split(df, train_size=train_size, random_state=seed)
+
+    train = train[train['X4_mean'] > 0]
+    val = val[val['X4_mean'] > 0]
 
     return train, val
 

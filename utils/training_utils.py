@@ -90,7 +90,7 @@ def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer,
         optimizer.step()
         optimizer.zero_grad()
         scheduler.step()
-        
+
         LOSS.update(loss)
         MAE.update(y_pred, y_true)
         R2.update(y_pred, y_true)
