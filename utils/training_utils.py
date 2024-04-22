@@ -61,7 +61,7 @@ def get_y_mean(df:DataFrame):
     return torch.tensor(df[Generics.TARGET_COLUMNS]).mean(dim=0)
 
 
-def train(model, optimizer, config, scheduler, dataloader, loss_fn=r2_loss):
+def train(model, optimizer, config, scheduler, dataloader, global_y_mean, loss_fn=r2_loss):
     MAE = torchmetrics.regression.MeanAbsoluteError().to('cuda')
     R2 = torchmetrics.regression.R2Score(num_outputs=config.N_TARGETS, multioutput='uniform_average').to('cuda')
     LOSS = AverageMeter()
@@ -77,7 +77,7 @@ def train(model, optimizer, config, scheduler, dataloader, loss_fn=r2_loss):
             y_true = y_true.to('cuda')
             t_start = time.perf_counter_ns()
             y_pred = model(X_batch)
-            loss = loss_fn(y_pred, y_true)
+            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean)
             LOSS.update(loss)
             loss.backward()
             optimizer.step()

@@ -7,10 +7,13 @@ from sklearn.model_selection import train_test_split
 from generics import Generics
 
 
-def prep_dataset(filepath, size=None, train_size=0.2, seed=42):
+def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
     '''
     Takes:
       filepath to csv file 
+      size: total number of samples 
+      train_size: fraction of data to be used for training 
+      seed: seed for subsampling and splititng 
     Returns: 
         pd.DataFrame with filepaths for images and jpeg bytes added
     '''
