@@ -16,9 +16,9 @@ def outlier_filter(df:pd.DataFrame, lower_quantile=0.005, upper_quantile=0.985):
         filtered dataframe
     '''
     for column in Generics.TARGET_COLUMNS:
-        lower_quantile = df[column].quantile(lower_quantile)
-        upper_quantile = df[column].quantile(upper_quantile)  
-        df = df[(df[column] >= lower_quantile) & (df[column] <= upper_quantile)]
+        lower_q = df[column].quantile(lower_quantile)
+        upper_q = df[column].quantile(upper_quantile)  
+        df = df[(df[column] >= lower_q) & (df[column] <= upper_q)]
     return df 
     
 def log_transform(df:pd.DataFrame, columns=None):
