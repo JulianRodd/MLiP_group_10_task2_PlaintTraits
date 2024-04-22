@@ -18,7 +18,7 @@ def get_lr_scheduler(optimizer, config):
     return lr_scheduler.OneCycleLR(
         optimizer=optimizer,
         max_lr=config.LR_MAX,
-        total_steps=config.N_STEPS,
+        total_steps=config.N_STEPS['train'],
         pct_start=0.1,
         anneal_strategy='cos',
         div_factor=1e1,
@@ -61,45 +61,80 @@ def get_y_mean(df:DataFrame):
     return torch.tensor(df[Generics.TARGET_COLUMNS].values).mean(dim=0)
 
 
-def train(model, optimizer, config, scheduler, dataloader, global_y_mean, loss_fn=r2_loss):
+def train(model, optimizer, config, scheduler, dataloader_train, dataloader_val, global_y_mean, loss_fn=r2_loss):
     MAE = torchmetrics.regression.MeanAbsoluteError().to('cuda')
     R2 = torchmetrics.regression.R2Score(num_outputs=config.N_TARGETS, multioutput='uniform_average').to('cuda')
     LOSS = AverageMeter()
 
     for epoch in range(config.N_EPOCHS):
-        MAE.reset()
-        R2.reset()
-        LOSS.reset()
-        model.train()
-            
-        for step, (X_batch, y_true) in enumerate(dataloader):
-            X_batch = X_batch.to('cuda')
-            y_true = y_true.to('cuda')
-            t_start = time.perf_counter_ns()
-            y_pred = model(X_batch)
-            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
-            LOSS.update(loss)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            scheduler.step()
-            MAE.update(y_pred, y_true)
-            R2.update(y_pred, y_true)
-                
-            if not config.IS_INTERACTIVE and (step+1) == config.N_STEPS_PER_EPOCH:
-                print(
-                    f'EPOCH {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH} | ' + 
-                    f'loss: {LOSS.avg:.4f}, mae: {MAE.compute().item():.4f}, r2: {R2.compute().item():.4f}, ' +
-                    f'step: {(time.perf_counter_ns()-t_start)*1e-9:.3f}s, lr: {scheduler.get_last_lr()[0]:.2e}',
-                )
-            elif config.IS_INTERACTIVE:
-                print(
-                    f'\rEPOCH {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH} | ' + 
-                    f'loss: {LOSS.avg:.4f}, mae: {MAE.compute().item():.4f}, r2: {R2.compute().item():.4f}, ' +
-                    f'step: {(time.perf_counter_ns()-t_start)*1e-9:.3f}s, lr: {scheduler.get_last_lr()[0]:.2e}',
-                    end='\n' if (step + 1) == config.N_STEPS_PER_EPOCH else '', flush=True,
-                )
+        model, scheduler, optimizer = train_epoch(MAE, R2, LOSS, model, dataloader_train, loss_fn, optimizer, scheduler, config, epoch, global_y_mean)
+        val_epoch(MAE, R2, LOSS, model, dataloader_val, loss_fn, config, epoch, global_y_mean)
 
     torch.save(model, 'model.pth')
-    return model 
+    return model
+
+
+def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer, 
+                scheduler, config, current_epoch, global_y_mean): 
+    MAE.reset()
+    R2.reset()
+    LOSS.reset()
+    model.train()
+        
+    for step, (X_batch, y_true) in enumerate(dataloader):
+        X_batch = X_batch.to('cuda')
+        y_true = y_true.to('cuda')
+        t_start = time.perf_counter_ns()
+        y_pred = model(X_batch)
+        loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
+        LOSS.update(loss)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        scheduler.step()
+        MAE.update(y_pred, y_true)
+        R2.update(y_pred, y_true)
+            
+        logging(config, 'train', current_epoch, step, t_start, MAE, LOSS, R2, scheduler)
+    return model, scheduler, optimizer
+
+def val_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, config, current_epoch, global_y_mean):
+    MAE.reset()
+    R2.reset()
+    LOSS.reset()
+    model.eval()
+        
+    for step, (X_batch, y_true) in enumerate(dataloader):
+        X_batch = X_batch.to('cuda')
+        y_true = y_true.to('cuda')
+        t_start = time.perf_counter_ns()
+        y_pred = model(X_batch)
+        loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
+        LOSS.update(loss)
+        MAE.update(y_pred, y_true)
+        R2.update(y_pred, y_true)
+            
+        logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2)
+
+def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None):
+        if not config.IS_INTERACTIVE and (step+1) == config.N_STEPS_PER_EPOCH[mode]:
+            print(get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler))
+        elif config.IS_INTERACTIVE:
+             print(
+                get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler),
+                end='\n' if (step + 1) == config.N_STEPS_PER_EPOCH[mode] else '', flush=True,
+            )
+
+def get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None): 
+    string  = f'{mode} logging'.upper() + \
+        f'\rEPOCH {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
+        f'loss: {LOSS.avg:.4f}, mae: {MAE.compute().item():.4f}, r2: {R2.compute().item():.4f}, ' 
+    
+    if mode == 'train':
+        string += f'step: {(time.perf_counter_ns()-t_start)*1e-9:.3f}s, lr: {scheduler.get_last_lr()[0]:.2e}'
+    else:
+        string += f'step: {(time.perf_counter_ns()-t_start)*1e-9:.3f}s'
+    return string 
+
+
 
