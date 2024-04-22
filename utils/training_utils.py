@@ -127,8 +127,7 @@ def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None):
             )
 
 def get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None): 
-    string  = f'{mode} logging'.upper() + \
-        f'\rEPOCH[{mode}] {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
+    string  = f'\rEPOCH[{mode}] {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
         f'loss: {LOSS.avg:.4f}, mae: {MAE.compute().item():.4f}, r2: {R2.compute().item():.4f}, ' 
     
     if mode == 'train':
