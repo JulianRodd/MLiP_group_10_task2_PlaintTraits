@@ -68,12 +68,10 @@ def train(model, optimizer, config, scheduler, dataloader_train, dataloader_val,
 
     for epoch in range(config.N_EPOCHS):
         model, scheduler, optimizer = train_epoch(MAE, R2, LOSS, model, dataloader_train, loss_fn, optimizer, scheduler, config, epoch, global_y_mean)
-        torch.cuda.empty_cache()
         val_epoch(MAE, R2, LOSS, model, dataloader_val, loss_fn, config, epoch, global_y_mean)
 
     torch.save(model, 'model.pth')
     return model
-
 
 def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer, 
                 scheduler, config, current_epoch, global_y_mean): 
@@ -88,34 +86,37 @@ def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer,
         t_start = time.perf_counter_ns()
         y_pred = model(X_batch)
         loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
-        LOSS.update(loss)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
         scheduler.step()
+        
+        LOSS.update(loss)
         MAE.update(y_pred, y_true)
         R2.update(y_pred, y_true)
-            
+        
         logging(config, 'train', current_epoch, step, t_start, MAE, LOSS, R2, scheduler)
+    
     return model, scheduler, optimizer
 
 def val_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, config, current_epoch, global_y_mean):
     MAE.reset()
     R2.reset()
     LOSS.reset()
+    
     model.eval()
-        
-    for step, (X_batch, y_true) in enumerate(dataloader):
-        X_batch = X_batch.to('cuda')
-        y_true = y_true.to('cuda')
-        t_start = time.perf_counter_ns()
-        y_pred = model(X_batch)
-        loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
-        LOSS.update(loss)
-        MAE.update(y_pred, y_true)
-        R2.update(y_pred, y_true)
-            
-        logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2)
+    with torch.no_grad():    
+        for step, (X_batch, y_true) in enumerate(dataloader):
+            X_batch = X_batch.to('cuda')
+            y_true = y_true.to('cuda')
+            t_start = time.perf_counter_ns()
+            y_pred = model(X_batch)
+            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
+            LOSS.update(loss)
+            MAE.update(y_pred, y_true)
+            R2.update(y_pred, y_true)
+
+            logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2)
 
 def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None):
         if not config.IS_INTERACTIVE and (step+1) == config.N_STEPS_PER_EPOCH[mode]:
@@ -135,6 +136,3 @@ def get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=
     else:
         string += f'step: {(time.perf_counter_ns()-t_start)*1e-9:.3f}s'
     return string 
-
-
-
