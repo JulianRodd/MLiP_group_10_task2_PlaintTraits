@@ -19,7 +19,7 @@ def outlier_filter(df:pd.DataFrame, lower_quantile=0.005, upper_quantile=0.985):
         lower_quantile = df[column].quantile(lower_quantile)
         upper_quantile = df[column].quantile(upper_quantile)  
         df = df[(df[column] >= lower_quantile) & (df[column] <= upper_quantile)]
-        return df 
+    return df 
     
 def log_transform(df:pd.DataFrame, columns=None):
     '''
@@ -31,7 +31,10 @@ def log_transform(df:pd.DataFrame, columns=None):
     Returns:
         DataFrame with log10 transformed cols 
     '''
-    for target_idx, target in enumerate(Generics.TARGET_COLUMNS):
+    if columns is None:
+        columns = Generics.TARGET_COLUMNS
+
+    for target in columns:
         v = df[target].values
         if target in columns:
             v = log10(v)
