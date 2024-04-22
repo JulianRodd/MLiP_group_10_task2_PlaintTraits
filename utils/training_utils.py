@@ -42,10 +42,10 @@ class AverageMeter(object):
 
 
 def r2_loss(y_pred, y_true, global_y_mean, eps=1e-6):
-    ss_res = torch.sum((y_true - y_pred)**2, dim=0)
-    global_y_mean.to('cuda')
-    ss_total = torch.sum((y_true - global_y_mean)**2, dim=0)
     eps = torch.tensor([eps]).to('cuda')
+
+    ss_res = torch.sum((y_true - y_pred)**2, dim=0)
+    ss_total = torch.sum((y_true - global_y_mean)**2, dim=0)
     ss_total = torch.maximum(ss_total, eps)
     r2 = torch.mean(ss_res / ss_total)
     return r2
@@ -77,7 +77,7 @@ def train(model, optimizer, config, scheduler, dataloader, global_y_mean, loss_f
             y_true = y_true.to('cuda')
             t_start = time.perf_counter_ns()
             y_pred = model(X_batch)
-            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean)
+            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to('cuda'))
             LOSS.update(loss)
             loss.backward()
             optimizer.step()
