@@ -35,7 +35,7 @@ def log_transform(df:pd.DataFrame, columns=None):
         v = df[target].values
         if target in columns:
             v = log10(v)
-        df[:, target_idx] = v
+        df[target].values = v
     return df 
 
 

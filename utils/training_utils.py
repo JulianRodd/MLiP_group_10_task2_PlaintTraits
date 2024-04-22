@@ -101,4 +101,5 @@ def train(model, optimizer, config, scheduler, dataloader, loss_fn=r2_loss):
                 )
 
     torch.save(model, 'model.pth')
+    return model 
 
