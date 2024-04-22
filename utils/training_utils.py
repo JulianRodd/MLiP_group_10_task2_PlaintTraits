@@ -58,7 +58,7 @@ def get_y_mean(df:DataFrame):
     Returns:
         Tensor of target columns means  
     '''
-    return torch.tensor(df[Generics.TARGET_COLUMNS]).mean(dim=0)
+    return torch.tensor(df[Generics.TARGET_COLUMNS].values).mean(dim=0)
 
 
 def train(model, optimizer, config, scheduler, dataloader, global_y_mean, loss_fn=r2_loss):
