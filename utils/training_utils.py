@@ -65,10 +65,14 @@ def train(model, optimizer, config, scheduler, dataloader_train, dataloader_val,
     MAE = torchmetrics.regression.MeanAbsoluteError().to('cuda')
     R2 = torchmetrics.regression.R2Score(num_outputs=config.N_TARGETS, multioutput='uniform_average').to('cuda')
     LOSS = AverageMeter()
-
+    best_r2 = 0
     for epoch in range(config.N_EPOCHS):
         model, scheduler, optimizer = train_epoch(MAE, R2, LOSS, model, dataloader_train, loss_fn, optimizer, scheduler, config, epoch, global_y_mean)
-        val_epoch(MAE, R2, LOSS, model, dataloader_val, loss_fn, config, epoch, global_y_mean)
+        current_r2 = val_epoch(MAE, R2, LOSS, model, dataloader_val, loss_fn, config, epoch, global_y_mean)
+
+        if current_r2 > best_r2: 
+            best_r2 = current_r2
+            torch.save(model, f'best_model_epoch{epoch+1}.pth')
 
     torch.save(model, 'model.pth')
     return model
@@ -117,6 +121,7 @@ def val_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, config, current_epoch, 
             R2.update(y_pred, y_true)
 
             logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2)
+    return R2.compute().item()
 
 def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None):
         if not config.IS_INTERACTIVE and (step+1) == config.N_STEPS_PER_EPOCH[mode]:
