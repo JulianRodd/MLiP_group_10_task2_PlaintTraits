@@ -72,9 +72,9 @@ def train(model, optimizer, config, scheduler, dataloader_train, dataloader_val,
 
         if current_r2 > best_r2: 
             best_r2 = current_r2
-            torch.save(model, f'best_model_epoch{epoch+1}.pth')
+            torch.save(model.state_dict(), f'best_model_epoch{epoch+1}.pth')
 
-    torch.save(model, 'model.pth')
+    torch.save(model.state_dict(), f'final_model.pth')
     return model
 
 def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer, 
