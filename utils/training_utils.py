@@ -132,7 +132,7 @@ def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer,
         MAE.update(y_pred, y_true)
         R2.update(y_pred, y_true)
         
-        logging(config, 'train', current_epoch, step, t_start, MAE, LOSS, R2, scheduler, current_loss=loss, use_wandb=use_wandb)
+        logging(config, 'train', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=scheduler, current_loss=loss, use_wandb=use_wandb)
     
     return model, scheduler, optimizer
 
@@ -153,10 +153,10 @@ def val_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, config, current_epoch, 
             MAE.update(y_pred, y_true)
             R2.update(y_pred, y_true)
 
-            logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2, current_loss=loss)
+            logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=None, use_wandb=use_wandb, current_loss=loss)
     return R2.compute().item()
 
-def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, current_loss, scheduler=None):
+def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, current_loss, use_wandb=True, scheduler=None):
         if not config.IS_INTERACTIVE and (step+1) == config.N_STEPS_PER_EPOCH[mode]:
             print(get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler))
         elif config.IS_INTERACTIVE:
@@ -164,8 +164,8 @@ def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, current_loss, sch
                 get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler),
                 end='\n' if (step + 1) == config.N_STEPS_PER_EPOCH[mode] else '', flush=True,
             )
-             
-        wandb.log({f"{mode}_r2_batch_loss": current_loss.item()})
+        if use_wandb:
+            wandb.log({f"{mode}_r2_batch_loss": current_loss.item()})
 
 def get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None): 
     string  = f'\rEPOCH[{mode}] {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
