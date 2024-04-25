@@ -97,6 +97,7 @@ def train(model, optimizer, config, scheduler,
 
     MAE = torchmetrics.regression.MeanAbsoluteError().to('cuda')
     R2 = torchmetrics.regression.R2Score(num_outputs=config.N_TARGETS, multioutput='uniform_average').to('cuda')
+
     LOSS = AverageMeter()
     best_r2 = 0
     for epoch in range(config.N_EPOCHS):
@@ -106,7 +107,9 @@ def train(model, optimizer, config, scheduler,
         if current_r2 > best_r2: 
             best_r2 = current_r2
             torch.save(model.state_dict(), f'best_model_epoch{epoch+1}.pth')
-
+    
+    if use_wandb:
+        wandb.finish()
     torch.save(model.state_dict(), f'final_model.pth')
     return model
 
@@ -131,8 +134,12 @@ def train_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, optimizer,
         LOSS.update(loss)
         MAE.update(y_pred, y_true)
         R2.update(y_pred, y_true)
+
+        batch_r2=torchmetrics.functional.regression.r2_score(preds=y_pred, target=y_true)
+        batch_mae=torchmetrics.functional.regression.mean_absolute_error(preds=y_pred, target=y_true)
         
-        logging(config, 'train', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=scheduler, current_loss=loss, use_wandb=use_wandb)
+        logging(config, 'train', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=scheduler, 
+                batch_mae=batch_mae, batch_r2=batch_r2, batch_loss=loss, use_wandb=use_wandb)
     
     return model, scheduler, optimizer
 
@@ -156,7 +163,7 @@ def val_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, config, current_epoch, 
             logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=None, use_wandb=use_wandb, current_loss=loss)
     return R2.compute().item()
 
-def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, current_loss, use_wandb=True, scheduler=None):
+def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, batch_loss, batch_r2, batch_mae, use_wandb=True, scheduler=None):
         if not config.IS_INTERACTIVE and (step+1) == config.N_STEPS_PER_EPOCH[mode]:
             print(get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler))
         elif config.IS_INTERACTIVE:
@@ -165,7 +172,13 @@ def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, current_loss, use
                 end='\n' if (step + 1) == config.N_STEPS_PER_EPOCH[mode] else '', flush=True,
             )
         if use_wandb:
-            wandb.log({f"{mode}_r2_batch_loss": current_loss.item()})
+            logging_dict = {f"{mode}_r2_batch_loss": batch_loss.item(),
+                           f"{mode}_r2_batch": batch_r2.item(),
+                           f"{mode}_mae_batch": batch_mae.item()} 
+            if scheduler is not None: 
+                logging['lr'] = scheduler.get_last_lr()[0]
+    
+            wandb.log(logging_dict)
 
 def get_log_string(config, mode, epoch, step, t_start, MAE, LOSS, R2, scheduler=None): 
     string  = f'\rEPOCH[{mode}] {epoch+1:02d}, {step+1:04d}/{config.N_STEPS_PER_EPOCH[mode]} | ' + \
