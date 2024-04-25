@@ -64,6 +64,7 @@ def get_y_mean(df:DataFrame):
     return torch.tensor(df[Generics.TARGET_COLUMNS].values).mean(dim=0)
 
 
+
 def init_wandb(config, secret_name='wandb_api', 
                project_name='MLiP_PlantTraits', 
                name='PlantCLEF_r2loss'): 
@@ -159,8 +160,12 @@ def val_epoch(MAE, R2, LOSS, model, dataloader, loss_fn, config, current_epoch, 
             LOSS.update(loss)
             MAE.update(y_pred, y_true)
             R2.update(y_pred, y_true)
+            
+            batch_r2=torchmetrics.functional.regression.r2_score(preds=y_pred, target=y_true)
+            batch_mae=torchmetrics.functional.regression.mean_absolute_error(preds=y_pred, target=y_true)
 
-            logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=None, use_wandb=use_wandb, current_loss=loss)
+            logging(config, 'val', current_epoch, step, t_start, MAE, LOSS, R2, scheduler=None, 
+                    use_wandb=use_wandb, batch_loss=loss, batch_mae=batch_mae, batch_r2=batch_r2)
     return R2.compute().item()
 
 def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, batch_loss, batch_r2, batch_mae, use_wandb=True, scheduler=None):
@@ -176,7 +181,7 @@ def logging(config, mode, epoch, step, t_start, MAE, LOSS, R2, batch_loss, batch
                            f"{mode}_r2_batch": batch_r2.item(),
                            f"{mode}_mae_batch": batch_mae.item()} 
             if scheduler is not None: 
-                logging['lr'] = scheduler.get_last_lr()[0]
+                logging_dict['lr'] = scheduler.get_last_lr()[0]
     
             wandb.log(logging_dict)
 
