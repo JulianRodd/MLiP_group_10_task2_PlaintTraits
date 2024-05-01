@@ -6,6 +6,7 @@ import time
 from kaggle_secrets import UserSecretsClient
 import wandb
 from datetime import date
+from copy import deepcopy
 
 from generics import Generics
 
@@ -107,7 +108,21 @@ def train(model, optimizer, config, scheduler,
 
         if current_r2 > best_r2: 
             best_r2 = current_r2
-            torch.save(model.state_dict(), f'best_model_epoch{epoch+1}.pth')
+            best_model_wts = deepcopy(model.state_dict())
+            checkpoint = {
+                            'epoch': epoch,
+                            'model': best_model_wts,
+                            'optimizer': optimizer.state_dict(), 
+                            'scheduler': scheduler.state_dict()}
+            torch.save(checkpoint, f"best_model_epoch_{epoch}.pth")
+
+        latest_model_wts = deepcopy(model.state_dict())
+        checkpoint = {
+                    'epoch': epoch,
+                    'model': latest_model_wts,
+                    'optimizer': optimizer.state_dict(), 
+                    'scheduler': scheduler.state_dict()}
+        torch.save(checkpoint, f"latest_model_epoch_{epoch}.pth")
     
     if use_wandb:
         wandb.finish()
