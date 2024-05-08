@@ -89,86 +89,6 @@ def init_wandb(
     )
 
 
-# def train(
-#     model,
-#     optimizer,
-#     config,
-#     scheduler,
-#     dataloader_train,
-#     dataloader_val,
-#     global_y_mean,
-#     loss_fn=r2_loss,
-#     use_wandb=True,
-#     wandb_kwargs: dict = None,
-# ):
-
-#     if use_wandb:
-#         if wandb_kwargs is not None:
-#             init_wandb(config, **wandb_kwargs)
-#         else:
-#             init_wandb(config)
-
-#     MAE = torchmetrics.regression.MeanAbsoluteError().to("cuda")
-#     R2 = torchmetrics.regression.R2Score(
-#         num_outputs=config.N_TARGETS, multioutput="uniform_average"
-#     ).to("cuda")
-
-#     LOSS = AverageMeter()
-#     best_r2 = 0
-#     for epoch in range(config.N_EPOCHS):
-#         model, scheduler, optimizer = train_epoch(
-#             MAE,
-#             R2,
-#             LOSS,
-#             model,
-#             dataloader_train,
-#             loss_fn,
-#             optimizer,
-#             scheduler,
-#             config,
-#             epoch,
-#             global_y_mean,
-#             use_wandb,
-#         )
-#         current_r2 = val_epoch(
-#             MAE,
-#             R2,
-#             LOSS,
-#             model,
-#             dataloader_val,
-#             loss_fn,
-#             config,
-#             epoch,
-#             global_y_mean,
-#             use_wandb=use_wandb,
-#         )
-
-#         if current_r2 > best_r2:
-#             best_r2 = current_r2
-#             best_model_wts = deepcopy(model.state_dict())
-#             checkpoint = {
-#                 "epoch": epoch,
-#                 "model": best_model_wts,
-#                 "optimizer": optimizer.state_dict(),
-#                 "scheduler": scheduler.state_dict(),
-#             }
-#             torch.save(checkpoint, f"best_model_epoch_{epoch}.pth")
-
-#         latest_model_wts = deepcopy(model.state_dict())
-#         checkpoint = {
-#             "epoch": epoch,
-#             "model": latest_model_wts,
-#             "optimizer": optimizer.state_dict(),
-#             "scheduler": scheduler.state_dict(),
-#         }
-#         torch.save(checkpoint, f"latest_model_epoch_{epoch}.pth")
-
-#     if use_wandb:
-#         wandb.finish()
-#     torch.save(model.state_dict(), f"final_model.pth")
-#     return model
-
-
 def train(
     model,
     optimizer,
@@ -245,7 +165,10 @@ def train_epoch(
     LOSS.reset()
     model.train()
 
+    wandb.log({"epoch": epoch})
+
     for step, (X_batch, y_true) in enumerate(dataloader):
+        wandb.log({"steps": step})
         X_batch = X_batch.to("cuda")
         y_true = y_true.to("cuda")
         t_start = time.perf_counter_ns()
@@ -297,6 +220,7 @@ def train_epoch(
                     'optimizer': optimizer.state_dict(),
                     'lr_scheduler': lr_scheduler }
                 torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model_epoch_{epoch}.pth")
+                print("Saved checkpoint")
                 
             model.train()
 
