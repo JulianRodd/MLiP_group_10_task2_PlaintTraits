@@ -209,7 +209,7 @@ def train_epoch(
 
         if step % config.VAL_STEPS == 0:
             model.eval()
-            val_loss = val_epoch(dataloader_val, config, global_y_mean, model, loss, optimizer)
+            val_loss = val_epoch(dataloader_val, config, global_y_mean, model, loss)
             
             if val_loss < best_val_r2:
                 best_val_r2 = val_loss
