@@ -218,7 +218,7 @@ def train_epoch(
                     'epoch': epoch,
                     'model': best_model_wts,
                     'optimizer': optimizer.state_dict(),
-                    'lr_scheduler': lr_scheduler }
+                    'lr_scheduler': scheduler.state_dict()}
                 torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model_epoch_{epoch}.pth")
                 print("Saved checkpoint")
                 
