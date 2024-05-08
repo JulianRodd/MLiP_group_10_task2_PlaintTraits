@@ -209,7 +209,7 @@ def train_epoch(
 
         if step % config.VAL_STEPS == 0:
             model.eval()
-            val_loss = val_epoch(dataloader_val, config, global_y_mean, model, loss)
+            val_loss = val_epoch(dataloader_val, config, global_y_mean, model, loss_fn)
             
             if val_loss < best_val_r2:
                 best_val_r2 = val_loss
@@ -227,7 +227,7 @@ def train_epoch(
     return model, scheduler, optimizer, R2.compute().item(), best_val_r2
 
 
-def val_epoch(dataloader_val, config, global_y_mean, model, loss):
+def val_epoch(dataloader_val, config, global_y_mean, model, loss_fn):
     running_val_loss = 0.0
     with torch.set_grad_enabled(False):
         y_true = []
@@ -237,7 +237,7 @@ def val_epoch(dataloader_val, config, global_y_mean, model, loss):
             inputs_val = inputs_val.to(config.DEVICE)
             labels_val = labels_val.to(config.DEVICE)
             outputs_val = model(inputs_val)
-            val_loss = loss(outputs_val, labels_val, global_y_mean)
+            val_loss = loss_fn(outputs_val, labels_val, global_y_mean)
             running_val_loss += val_loss.item() * inputs_val.size(0)
             y_true.append(labels_val.to("cpu"))
             y_pred.append(outputs_val.to("cpu"))
