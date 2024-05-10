@@ -15,6 +15,6 @@ def update_config_samples(config, mode, length):
 
 def check_dirs(config):
     if config.log_dir not in os.listdir(): 
-        os.mkdir(config.logdir)
+        os.mkdir(config.log_dir)
     elif config.checkpoint_save_dir not in os.listdir(): 
         os.mkdir(config.checkpoint_save_dir)
