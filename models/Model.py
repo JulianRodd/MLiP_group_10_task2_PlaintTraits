@@ -7,27 +7,27 @@ from functools import partial
 
 
 
+
 class Model(nn.Module):
     def __init__(self, config, model_name=None):
         super().__init__()
-        self.backbone = self.get_model_name(config, model_name)
+        self.backbone = self.get_backbone(config, model_name)
         
     def get_backbone(self, config, model_name): 
         if model_name is not None: 
-            timm.create_model(
+            return timm.create_model(
                 model_name,
                 num_classes=config.N_TARGETS,
                 pretrained=config.PRETRAINED)
         else: 
-            timm.create_model(
+            return timm.create_model(
                 config.MODEL,
                 num_classes=config.N_TARGETS,
                 pretrained=config.PRETRAINED)
 
         
     def forward(self, inputs):
-        return self.backbone(inputs)
-    
+        return self.backbone(inputs)    
 
 
 class CLEFVisionTransformer(timm.models.vision_transformer.VisionTransformer):
@@ -141,7 +141,7 @@ def interpolate_pos_embed(model, checkpoint_model):
             new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
             checkpoint_model['pos_embed'] = new_pos_embed
 
-def get_model_clef(config, model_name):
+def get_model_clef(config, model_name, model_path):
 
     model = models_vit[model_name](
         num_classes=config.N_TARGETS,
@@ -149,9 +149,9 @@ def get_model_clef(config, model_name):
         global_pool=config.GLOBAL_POOL,
         )
 
-    checkpoint = torch.load(config.checkpoint_path, map_location='cpu')
+    checkpoint = torch.load(model_path, map_location='cpu')
 
-    print("Load pre-trained checkpoint from: %s" % config.checkpoint_path)
+    print("Load pre-trained checkpoint from: %s" % model_path)
     checkpoint_model = checkpoint['model']
     state_dict = model.state_dict()
     for k in ['head.weight', 'head.bias']:
