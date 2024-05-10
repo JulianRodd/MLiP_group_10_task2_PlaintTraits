@@ -6,7 +6,7 @@ class Model(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.backbone = timm.create_model(
-                config.BACKBONE,
+                config.MODEL,
                 num_classes=config.N_TARGETS,
                 pretrained=config.PRETRAINED)
         
