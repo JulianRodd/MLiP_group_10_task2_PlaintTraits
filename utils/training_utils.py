@@ -209,10 +209,10 @@ def train_epoch(
 
         if step % config.VAL_STEPS == 0:
             model.eval()
-            val_loss = val_epoch(dataloader_val, config, global_y_mean, model, loss_fn)
+            val_r2 = val_epoch(dataloader_val, config, global_y_mean, model, loss_fn)
             
-            if val_loss < best_val_r2:
-                best_val_r2 = val_loss
+            if val_r2 > best_val_r2:
+                best_val_r2 = val_r2
                 best_model_wts = deepcopy(model.state_dict())
                 checkpoint = {
                     'epoch': epoch,
