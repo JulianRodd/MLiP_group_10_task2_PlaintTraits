@@ -24,13 +24,16 @@ def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
     df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
     df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
     
-    if train_size is not None: 
+    df = df[df['X4_mean'] > 0]
+
+    if train_size is None: 
+        shuffled_df = df.sample(n=len(df), random_state=seed)
+        shuffled_df = shuffled_df.reset_index(drop=True)
+        return shuffled_df
+    
+    else:
         train, val = train_test_split(df, train_size=train_size, random_state=seed)
-
-    train = train[train['X4_mean'] > 0]
-    val = val[val['X4_mean'] > 0]
-
-    return train, val
+        return train, val
 
 
 class Dataset(Dataset):
