@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from generics import Generics
 
 
-def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
+def prep_dataset(filepath, size=None, train_size=0.8, seed=42, tabular_only=False):
     '''
     Takes:
       filepath to csv file 
@@ -21,8 +21,9 @@ def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
     if size is not None:
         df = df.sample(size, random_state=seed)
     
-    df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
-    df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
+    if not tabular_only:
+        df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
+        df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
     
     df = df[df['X4_mean'] > 0]
 
