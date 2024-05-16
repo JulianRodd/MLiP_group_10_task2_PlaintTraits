@@ -29,12 +29,12 @@ class Model(nn.Module):
     def forward(self, inputs):
         return self.backbone(inputs)    
 
-
+## EVERYTHING BELOW IS ONLY FOR INFERENCE NOTEBOOKS 
 class CLEFVisionTransformer(timm.models.vision_transformer.VisionTransformer):
     """ Vision Transformer with support for global average pooling
     """
     def __init__(self, global_pool=False, **kwargs):
-        super(timm.models.vision_transformer.VisionTransformer, self).__init__(**kwargs)
+        super(VisionTransformer, self).__init__(**kwargs)
 
         self.global_pool = global_pool
         if self.global_pool:
@@ -145,8 +145,7 @@ def get_model_clef(config, model_name, model_path):
 
     model = models_vit[model_name](
         num_classes=config.N_TARGETS,
-        drop_path_rate=config.DROPOUT,
-        global_pool=config.GLOBAL_POOL,
+        drop_path_rate=config.DROPOUT
         )
 
     checkpoint = torch.load(model_path, map_location='cpu')
@@ -154,10 +153,6 @@ def get_model_clef(config, model_name, model_path):
     print("Load pre-trained checkpoint from: %s" % model_path)
     checkpoint_model = checkpoint['model']
     state_dict = model.state_dict()
-    for k in ['head.weight', 'head.bias']:
-        if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-            print(f"Removing key {k} from pretrained checkpoint")
-            del checkpoint_model[k]
 
     # interpolate position embedding
     interpolate_pos_embed(model, checkpoint_model)
@@ -166,7 +161,20 @@ def get_model_clef(config, model_name, model_path):
     msg = model.load_state_dict(checkpoint_model, strict=False)
     print(msg)
 
-    # manually initialize fc layer
-    trunc_normal_(model.head.weight, std=2e-5)
-
     return model.to(config.DEVICE)
+
+
+def load_model(model_path, model_name, config):
+    if 'plantclef' in model_path.lower(): 
+        return get_model_clef(config, model_name, model_path)
+    else:
+        model = Model(config, model_name=model_name)
+        #to do this the directory structure needs to be replicated --> we need the GH 
+#         model = torch.load(model_path) # I think it would be better to switch to params only instead of full model:
+        checkpoint = torch.load(model_path)
+        try:
+            model.load_state_dict(checkpoint['model'])
+        except: 
+            model = checkpoint #.load_state_dict(checkpoint)
+        model = model.to('cuda')
+        return model 
