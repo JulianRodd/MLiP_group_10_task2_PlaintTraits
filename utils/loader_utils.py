@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from generics import Generics
 
 
-def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
+def prep_dataset(filepath, size=None, train_size=0.8, seed=42, tabular_only=False):
     '''
     Takes:
       filepath to csv file 
@@ -15,19 +15,26 @@ def prep_dataset(filepath, size=None, train_size=0.8, seed=42):
       train_size: fraction of data to be used for training 
       seed: seed for subsampling and splititng 
     Returns: 
-        pd.DataFrame with filepaths for images and jpeg bytes added
+        pd.DataFrame with filepaths for images and jpeg bytes added + values for X4 filtered for >0
     '''
     df = pd.read_csv(filepath)
     if size is not None:
         df = df.sample(size, random_state=seed)
     
-    df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
-    df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
+    if not tabular_only:
+        df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
+        df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
     
-    if train_size is not None: 
-        train, val = train_test_split(df, train_size=train_size, random_state=seed)
+    df = df[df['X4_mean'] > 0]
 
-    return train, val
+    if train_size is None: 
+        shuffled_df = df.sample(n=len(df), random_state=seed)
+        shuffled_df = shuffled_df.reset_index(drop=True)
+        return shuffled_df
+    
+    else:
+        train, val = train_test_split(df, train_size=train_size, random_state=seed)
+        return train, val
 
 
 class Dataset(Dataset):
