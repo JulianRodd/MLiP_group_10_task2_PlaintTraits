@@ -159,6 +159,7 @@ def train_epoch(
     best_val_r2,
     epoch,
     use_wandb=True,
+    save_checkpoint_every_epoch=True
 ):
     MAE.reset()
     R2.reset()
@@ -219,7 +220,10 @@ def train_epoch(
                     'model': best_model_wts,
                     'optimizer': optimizer.state_dict(),
                     'lr_scheduler': scheduler.state_dict()}
-                torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model_epoch_{epoch}.pth")
+                if save_checkpoint_every_epoch:
+                    torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model_epoch_{epoch}.pth")
+                else:
+                    torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model.pth")
                 print("Saved checkpoint")
                 
             model.train()
