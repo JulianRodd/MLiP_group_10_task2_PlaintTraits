@@ -275,10 +275,10 @@ def val_epoch(dataloader_val, config, global_y_mean, model, loss_fn):
         wandb.log({"val_r2": val_r2})
         print('Val R2: {:.4f}'.format(val_r2))
 
-
-        for i, target_feat in enumerate(Generics.TARGET_COLUMNS):
-            val_r2_feat = torchmetrics.functional.regression.r2_score(preds=y_pred[:, i], target=y_true[:, i])
-            wandb.log({f"val_r2_{target_feat}": val_r2_feat})
+        if len(config.TARGET_COLUMNS) > 1:
+            for i, target_feat in enumerate(Generics.TARGET_COLUMNS):
+                val_r2_feat = torchmetrics.functional.regression.r2_score(preds=y_pred[:, i], target=y_true[:, i])
+                wandb.log({f"val_r2_{target_feat}": val_r2_feat})
 
         return val_r2
 
