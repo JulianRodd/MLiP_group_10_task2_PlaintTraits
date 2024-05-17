@@ -30,7 +30,7 @@ def prep_dataset(filepath, size=None, train_size=0.8, seed=42, tabular_only=Fals
     if train_size is None: 
         shuffled_df = df.sample(n=len(df), random_state=seed)
         shuffled_df = shuffled_df.reset_index(drop=True)
-        return shuffled_df
+        return shuffled_df, None
     
     else:
         train, val = train_test_split(df, train_size=train_size, random_state=seed)
