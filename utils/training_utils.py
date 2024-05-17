@@ -193,7 +193,7 @@ def train_epoch(
         t_start = time.perf_counter_ns()
         with torch.set_grad_enabled(True):
             y_pred = model(X_batch)
-            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to(config.DEVICE))
+            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to(config.DEVICE), device=config.DEVICE)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
