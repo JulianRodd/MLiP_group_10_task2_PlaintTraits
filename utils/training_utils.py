@@ -95,12 +95,13 @@ def train(
     config,
     scheduler,
     dataloader_train,
-    dataloader_val,
-    global_y_mean,
+    dataloader_val = None,
+    global_y_mean = None,
     loss_fn=r2_loss,
     use_wandb=True,
     wandb_kwargs: dict = None,
-):
+    save_checkpoint_every_epoch = True
+    ):
 
     if use_wandb:
         if wandb_kwargs is not None:
@@ -133,9 +134,23 @@ def train(
             best_val_r2,
             epoch,
             use_wandb,
+            save_checkpoint_every_epoch
         )
         if use_wandb:
             wandb.log({"train_r2": train_r2})
+
+        if dataloader_val is None:
+            best_model_wts = deepcopy(model.state_dict())
+            checkpoint = {
+                'epoch': epoch,
+                'model': best_model_wts,
+                'optimizer': optimizer.state_dict(),
+                'lr_scheduler': scheduler.state_dict()}
+            if save_checkpoint_every_epoch:
+                torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model_epoch_{epoch}.pth")
+            else:
+                torch.save(checkpoint, f"{config.checkpoint_save_dir}best_model.pth")
+            print("Saved checkpoint")
 
     if use_wandb:
         wandb.finish()
@@ -149,18 +164,20 @@ def train_epoch(
     LOSS,
     model,
     dataloader,
-    dataloader_val,
-    loss_fn,
-    optimizer,
-    scheduler,
-    config,
-    current_epoch,
-    global_y_mean,
-    best_val_r2,
-    epoch,
+    dataloader_val = None,
+    loss_fn = None,
+    optimizer = None,
+    scheduler = None,
+    config = None,
+    current_epoch = None,
+    global_y_mean = None,
+    best_val_r2 = None,
+    epoch = None,
     use_wandb=True,
     save_checkpoint_every_epoch=True
 ):
+    if dataloader_val is None:
+        print("No validation set was given, so the best checkpoint will be based on the train R2")
     MAE.reset()
     R2.reset()
     LOSS.reset()
@@ -208,7 +225,7 @@ def train_epoch(
             use_wandb=use_wandb,
         )
 
-        if step % config.VAL_STEPS == 0:
+        if dataloader_val is not None and step % config.VAL_STEPS == 0:
             model.eval()
             val_r2 = val_epoch(dataloader_val, config, global_y_mean, model, loss_fn)
             
