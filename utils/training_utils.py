@@ -259,7 +259,7 @@ def val_epoch(dataloader_val, config, global_y_mean, model, loss_fn):
             inputs_val = inputs_val.to(config.DEVICE)
             labels_val = labels_val.to(config.DEVICE)
             outputs_val = model(inputs_val)
-            val_loss = loss_fn(outputs_val, labels_val, global_y_mean)
+            val_loss = loss_fn(outputs_val, labels_val, global_y_mean, device=config.DEVICE)
             running_val_loss += val_loss.item() * inputs_val.size(0)
             y_true.append(labels_val.to("cpu"))
             y_pred.append(outputs_val.to("cpu"))
