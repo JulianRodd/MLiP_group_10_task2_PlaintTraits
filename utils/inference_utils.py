@@ -5,7 +5,7 @@ from pandas import DataFrame
 from generics import Generics
 
 
-def create_submission(model, dataset, scaler, log_features=Generics.TARGET_COLUMNS):
+def create_submission(model, dataset, scaler, log_features=Generics.TARGET_COLUMNS, device='cuda'):
     '''
     Creates a file "submission.csv" in cwd. 
     
@@ -23,7 +23,7 @@ def create_submission(model, dataset, scaler, log_features=Generics.TARGET_COLUM
 
     for X_sample_test, test_id in tqdm(dataset):
         with torch.no_grad():
-            y_pred = model(X_sample_test.unsqueeze(0).to('cuda')).detach().cpu().numpy()
+            y_pred = model(X_sample_test.unsqueeze(0).to(device)).detach().cpu().numpy()
         
         y_pred = scaler.inverse_transform(y_pred).squeeze()
         row = {'id': test_id}

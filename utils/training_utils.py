@@ -45,8 +45,8 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def r2_loss(y_pred, y_true, global_y_mean, eps=1e-6):
-    eps = torch.tensor([eps]).to("cuda")
+def r2_loss(y_pred, y_true, global_y_mean, eps=1e-6, device='cuda'):
+    eps = torch.tensor([eps]).to(device)
 
     ss_res = torch.sum((y_true - y_pred) ** 2, dim=0)
     ss_total = torch.sum((y_true - global_y_mean) ** 2, dim=0)
@@ -104,17 +104,17 @@ def train(
     ):
     if dataloader_val is None:
         print("No validation set was given, so the best checkpoint will be based on the train R2")
-        
+
     if use_wandb:
         if wandb_kwargs is not None:
             init_wandb(config, **wandb_kwargs)
         else:
             init_wandb(config)
 
-    MAE = torchmetrics.regression.MeanAbsoluteError().to("cuda")
+    MAE = torchmetrics.regression.MeanAbsoluteError().to(config.DEVICE)
     R2 = torchmetrics.regression.R2Score(
         num_outputs=config.N_TARGETS, multioutput="uniform_average"
-    ).to("cuda")
+    ).to(config.DEVICE)
 
     LOSS = AverageMeter()
     best_val_r2 = 0
@@ -188,12 +188,12 @@ def train_epoch(
 
     for step, (X_batch, y_true) in enumerate(dataloader):
         wandb.log({"steps": step})
-        X_batch = X_batch.to("cuda")
-        y_true = y_true.to("cuda")
+        X_batch = X_batch.to(config.DEVICE)
+        y_true = y_true.to(config.DEVICE)
         t_start = time.perf_counter_ns()
         with torch.set_grad_enabled(True):
             y_pred = model(X_batch)
-            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to("cuda"))
+            loss = loss_fn(y_pred, y_true, global_y_mean=global_y_mean.to(config.DEVICE))
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()

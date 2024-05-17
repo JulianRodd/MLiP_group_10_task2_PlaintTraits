@@ -176,5 +176,5 @@ def load_model(model_path, model_name, config):
             model.load_state_dict(checkpoint['model'])
         except: 
             model = checkpoint #.load_state_dict(checkpoint)
-        model = model.to('cuda')
+        model = model.to(config.DEVICE)
         return model 
