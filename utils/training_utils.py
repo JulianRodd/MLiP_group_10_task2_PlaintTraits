@@ -102,7 +102,9 @@ def train(
     wandb_kwargs: dict = None,
     save_checkpoint_every_epoch = True
     ):
-
+    if dataloader_val is None:
+        print("No validation set was given, so the best checkpoint will be based on the train R2")
+        
     if use_wandb:
         if wandb_kwargs is not None:
             init_wandb(config, **wandb_kwargs)
@@ -176,8 +178,7 @@ def train_epoch(
     use_wandb=True,
     save_checkpoint_every_epoch=True
 ):
-    if dataloader_val is None:
-        print("No validation set was given, so the best checkpoint will be based on the train R2")
+
     MAE.reset()
     R2.reset()
     LOSS.reset()
