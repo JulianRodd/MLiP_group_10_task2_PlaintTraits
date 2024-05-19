@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.model_selection import train_test_split
 import torch
 from pytorch_tabular import TabularModel
 from pytorch_tabular.config import DataConfig, OptimizerConfig
@@ -14,7 +15,6 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from generics import Generics
-from utils.loader_utils import prep_dataset
 from utils.preprocessing_utils import log_transform, outlier_filter
 
 logging.basicConfig(level=logging.INFO)
@@ -25,10 +25,36 @@ def create_directories(config):
     os.makedirs(config.checkpoint_save_dir, exist_ok=True)
     os.makedirs(config.model_save_dir, exist_ok=True)
 
+def prep_dataset(filepath, size=None, train_size=0.8, seed=42, tabular_only=False, vit_features=None):
+    df = pd.read_csv(filepath)
+    if vit_features is not None:
+        vit_features = pd.read_csv(vit_features)
+        df = pd.concat([df, vit_features], axis=1)
+    if size is not None:
+        df = df.sample(size, random_state=seed)
 
-def load_data(train_path, test_path, subset_size=None):
+    if not tabular_only:
+        df['file_path'] = df['id'].apply(lambda s: f'/kaggle/input/planttraits2024/train_images/{s}.jpeg')
+        df['jpeg_bytes'] = df['file_path'].progress_apply(lambda fp: open(fp, 'rb').read())
+
+    df = df[df['X4_mean'] > 0]
+
+    if train_size is None:
+        shuffled_df = df.sample(n=len(df), random_state=seed)
+        shuffled_df = shuffled_df.reset_index(drop=True)
+        return shuffled_df, None
+
+    else:
+        train, val = train_test_split(df, train_size=train_size, random_state=seed)
+        return train, val
+
+def load_data(train_path, test_path, subset_size=None, vit_features_train=None, vit_features_test=None):
     test_df = pd.read_csv(test_path)
-    train_df, val_df = prep_dataset(train_path, train_size=0.9, tabular_only=True)
+    if vit_features_test is not None:
+        vit_features_test = pd.read_csv(vit_features_test)
+        test_df = pd.concat([test_df, vit_features_test], axis=1)
+
+    train_df, val_df = prep_dataset(train_path, train_size=0.9, tabular_only=True, vit_features=vit_features_train)
     if subset_size:
         train_df = train_df.sample(n=subset_size, random_state=42)
         val_df = val_df.sample(n=subset_size // 4, random_state=42)
