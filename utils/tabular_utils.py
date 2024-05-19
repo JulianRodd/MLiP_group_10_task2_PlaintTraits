@@ -166,7 +166,7 @@ def predict_batch(model_target_dict, df, config):
     return predictions
 
 
-def generate_submission(test_df, predictions, config, SCALER, filename):
+def generate_submission(test_df, predictions, config, SCALER, filename, target):
     submission_rows = []
     for y_pred, test_id in zip(predictions, test_df["id"]):
         row = {"id": test_id}
@@ -178,7 +178,7 @@ def generate_submission(test_df, predictions, config, SCALER, filename):
                 row[k.replace("_mean", "")] = v
         submission_rows.append(row)
     submission_df = pd.DataFrame(submission_rows)
-    submission_df.to_csv(filename, index=False)
+    submission_df.to_csv(f"{target}_{filename}", index=False)
     print(f"Submission saved to {filename}!")
 
 
@@ -227,7 +227,7 @@ def generate_ensemble_submission(test_df, predictions_dict, config, SCALER):
             models = config.MODEL_ENSEMBLE_DICT[target]
             target_preds = []
             for model_name in models:
-                model_predictions = pd.read_csv(config.MODEL_CSV_DICT[model_name])
+                model_predictions = pd.read_csv(f"{target}_{config.MODEL_CSV_DICT[model_name]}")
                 target_preds.append(
                     model_predictions.loc[
                         model_predictions["id"] == test_id, target.replace("_mean", "")
