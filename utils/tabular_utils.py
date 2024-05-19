@@ -147,21 +147,24 @@ def train_model(
     return model_target_dict
 
 
-def predict_single(model_target_dict, x, config):
+def predict_single(model_target_dict, x, config, targetValue):
     y_pred = np.zeros((1, config.N_TARGETS))
     x_df = pd.DataFrame([x], columns=config.TABULAR_COLUMNS)
     for i, target in enumerate(Generics.TARGET_COLUMNS):
-        if target in model_target_dict:
+        if target in model_target_dict :
+          if target == targetValue:
             model = model_target_dict[target]
             y_pred[:, i] = model.predict(x_df).values
+        else:
+            y_pred[:, i] = 0
     return y_pred
 
 
-def predict_batch(model_target_dict, df, config):
+def predict_batch(model_target_dict, df, config, targetValue):
     predictions = []
     for _, row in tqdm(df.iterrows(), total=len(df)):
         x_sample = row[config.TABULAR_COLUMNS].values
-        y_pred = predict_single(model_target_dict, x_sample, config)
+        y_pred = predict_single(model_target_dict, x_sample, config, targetValue)
         predictions.append(y_pred)
     return predictions
 
@@ -178,7 +181,8 @@ def generate_submission(test_df, predictions, config, SCALER, filename, target):
                 row[k.replace("_mean", "")] = v
         submission_rows.append(row)
     submission_df = pd.DataFrame(submission_rows)
-    submission_df.to_csv(f"{target}_{filename}", index=False)
+    target_without_mean = target.replace("_mean", "")
+    submission_df.to_csv(f"{target_without_mean}_{filename}", index=False)
     print(f"Submission saved to {filename}!")
 
 
@@ -191,11 +195,11 @@ def non_pytorch_r2_loss(y_true, y_pred, global_y_mean, eps=1e-6):
     return r2
 
 
-def evaluate_model_on_val(model_target_dict, val_df, config, model_name):
+def evaluate_model_on_val(model_target_dict, val_df, config, model_name, targetValue):
     y_true = val_df[config.TARGET_COLUMNS].values
     y_pred = np.zeros_like(y_true)
     for i, row in enumerate(tqdm(val_df[config.TABULAR_COLUMNS].values)):
-        y_pred[i] = predict_single(model_target_dict, row, config)
+        y_pred[i] = predict_single(model_target_dict, row, config, targetValue)
 
     if np.isnan(y_pred).any():
         logger.warning(
@@ -227,10 +231,11 @@ def generate_ensemble_submission(test_df, predictions_dict, config, SCALER):
             models = config.MODEL_ENSEMBLE_DICT[target]
             target_preds = []
             for model_name in models:
-                model_predictions = pd.read_csv(f"{target}_{config.MODEL_CSV_DICT[model_name]}")
+                target_without_mean = target.replace("_mean", "")
+                model_predictions = pd.read_csv(f"{target_without_mean}_{config.MODEL_CSV_DICT[model_name]}")
                 target_preds.append(
                     model_predictions.loc[
-                        model_predictions["id"] == test_id, target.replace("_mean", "")
+                        model_predictions["id"] == test_id, target_without_mean
                     ].values[0]
                 )
             ensembled_pred = np.mean(target_preds)
