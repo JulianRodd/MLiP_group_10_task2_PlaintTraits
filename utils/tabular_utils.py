@@ -156,7 +156,7 @@ def predict_single(model_target_dict, x, config, targetValue):
             model = model_target_dict[target]
             y_pred[:, i] = model.predict(x_df).values
         else:
-            y_pred[:, i] = 0
+            y_pred[:, i] = 0.0
     return y_pred
 
 
@@ -182,7 +182,8 @@ def generate_submission(test_df, predictions, config, SCALER, filename, target):
         submission_rows.append(row)
     submission_df = pd.DataFrame(submission_rows)
     target_without_mean = target.replace("_mean", "")
-    submission_df.to_csv(f"{target_without_mean}_{filename}", index=False)
+    filename = f"{target_without_mean}_{filename}"
+    submission_df.to_csv(filename, index=False)
     print(f"Submission saved to {filename}!")
 
 
@@ -199,7 +200,7 @@ def evaluate_model_on_val(model_target_dict, val_df, config, model_name, targetV
     y_true = val_df[config.TARGET_COLUMNS].values
     y_pred = np.zeros_like(y_true)
     for i, row in enumerate(tqdm(val_df[config.TABULAR_COLUMNS].values)):
-        y_pred[i] = predict_single(model_target_dict, row, config, targetValue)
+        y_pred[i] = predict_single(model_target_dict, row, config)
 
     if np.isnan(y_pred).any():
         logger.warning(
@@ -222,32 +223,37 @@ def ensemble_predictions(models_predictions, config):
     return ensembled_predictions
 
 
-def generate_ensemble_submission(test_df, predictions_dict, config, SCALER):
+def generate_ensemble_submission(test_df, config):
     ensembled_rows = []
 
-    for idx, test_id in enumerate(test_df["id"]):
+    logger.info("Starting ensemble submission generation.")
+    for idx, test_id in enumerate(tqdm(test_df["id"], desc="Processing test ids")):
         row = {"id": test_id}
         for target in config.TARGET_COLUMNS:
             models = config.MODEL_ENSEMBLE_DICT[target]
             target_preds = []
-            for model_name in models:
-                target_without_mean = target.replace("_mean", "")
-                model_predictions = pd.read_csv(f"{target_without_mean}_{config.MODEL_CSV_DICT[model_name]}")
-                target_preds.append(
-                    model_predictions.loc[
-                        model_predictions["id"] == test_id, target_without_mean
-                    ].values[0]
-                )
+            target_without_mean = target.replace("_mean", "")
+
+            for model_name in tqdm(models, desc=f"Processing models for {target}"):
+                try:
+                    model_predictions = pd.read_csv(f"{target_without_mean}_{config.MODEL_CSV_DICT[model_name]}")
+                    pred_value = model_predictions.loc[model_predictions["id"] == test_id, target_without_mean].values[0]
+                    target_preds.append(pred_value)
+                except Exception as e:
+                    logger.error(f"Error processing {model_name} for {target}: {e}")
+
             ensembled_pred = np.mean(target_preds)
             if target in config.LOG_FEATURES:
-                row[target.replace("_mean", "")] = 10**ensembled_pred
+                row[target_without_mean] = 10**ensembled_pred
             else:
-                row[target.replace("_mean", "")] = ensembled_pred
+                row[target_without_mean] = ensembled_pred
+
         ensembled_rows.append(row)
+        logger.info(f"Processed {idx + 1}/{len(test_df)} test ids.")
 
     ensemble_df = pd.DataFrame(ensembled_rows)
     ensemble_df.to_csv(config.MODEL_CSV_DICT["ensemble"], index=False)
-    print("Ensemble submission saved to ensemble_submission.csv")
+    logger.info("Ensemble submission saved to ensemble_submission.csv")
 
 
 def plot_heatmap_and_correlation(data, title, output_path):
