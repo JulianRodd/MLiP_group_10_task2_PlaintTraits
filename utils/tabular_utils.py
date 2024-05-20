@@ -13,6 +13,7 @@ from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+import wandb
 
 from generics import Generics
 from utils.preprocessing_utils import log_transform, outlier_filter
@@ -195,12 +196,42 @@ def non_pytorch_r2_loss(y_true, y_pred, global_y_mean, eps=1e-6):
     r2 = np.mean(ss_res / ss_total)
     return r2
 
+def plot_and_log_correlation_heatmaps(config, features, before_pca):
+    if not config.PLOT_COR_HEATMAP:
+        return
 
+    pca_suffix = "Before PCA" if before_pca else "After PCA"
+    names = {
+        'train': f"Train Features Correlation ({pca_suffix})",
+        'val': f"Validation Features Correlation ({pca_suffix})",
+        'test': f"Test Features Correlation ({pca_suffix})",
+    }
+    image_names = {
+        'train': f"train_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
+        'val': f"val_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
+        'test': f"test_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
+    }
+
+    for key in ['train', 'val', 'test']:
+        plot_heatmap_and_correlation(
+            features[key],
+            names[key],
+            image_names[key],
+        )
+
+    if config.WANDB:
+        wandb.log(
+            {
+                names['train']: wandb.Image(image_names['train']),
+                names['val']: wandb.Image(image_names['val']),
+                names['test']: wandb.Image(image_names['test']),
+            }
+        )
 def evaluate_model_on_val(model_target_dict, val_df, config, model_name, targetValue):
     y_true = val_df[config.TARGET_COLUMNS].values
     y_pred = np.zeros_like(y_true)
     for i, row in enumerate(tqdm(val_df[config.TABULAR_COLUMNS].values)):
-        y_pred[i] = predict_single(model_target_dict, row, config)
+        y_pred[i] = predict_single(model_target_dict, row, config, targetValue)
 
     if np.isnan(y_pred).any():
         logger.warning(
