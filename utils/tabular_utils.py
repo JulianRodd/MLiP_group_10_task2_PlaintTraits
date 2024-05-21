@@ -274,10 +274,7 @@ def generate_ensemble_submission(test_df, config):
                     logger.error(f"Error processing {model_name} for {target}: {e}")
 
             ensembled_pred = np.mean(target_preds)
-            if target in config.LOG_FEATURES:
-                row[target_without_mean] = 10**ensembled_pred
-            else:
-                row[target_without_mean] = ensembled_pred
+            row[target_without_mean] = ensembled_pred
 
         ensembled_rows.append(row)
         logger.info(f"Processed {idx + 1}/{len(test_df)} test ids.")
