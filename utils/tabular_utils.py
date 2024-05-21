@@ -33,7 +33,7 @@ def prep_dataset(
     df = pd.read_csv(filepath)
     if vit_features is not None:
         vit_features = pd.read_csv(vit_features)
-        df = pd.concat([df, vit_features], axis=1)
+        df = pd.merge(df, vit_features, on="id", how="left")
     if size is not None:
         df = df.sample(size, random_state=seed)
 
@@ -67,15 +67,15 @@ def load_data(
     test_df = pd.read_csv(test_path)
     if vit_features_test is not None:
         vit_features_test = pd.read_csv(vit_features_test)
-        test_df = pd.concat([test_df, vit_features_test], axis=1)
+        test_df = pd.merge(test_df, vit_features_test, on="id", how="left")
 
     train_df, val_df = prep_dataset(
         train_path, train_size=0.9, tabular_only=True, vit_features=vit_features_train
     )
     if subset_size:
         train_df = train_df.sample(n=subset_size, random_state=42)
-        val_df = val_df.sample(n=subset_size // 4, random_state=42)
-        test_df = test_df.sample(n=subset_size // 4, random_state=42)
+        val_df = val_df.sample(n=subset_size // 10, random_state=42)
+        test_df = test_df.sample(n=subset_size // 10, random_state=42)
     train_df = outlier_filter(train_df)
     val_df = outlier_filter(val_df)
     return train_df, val_df, test_df
