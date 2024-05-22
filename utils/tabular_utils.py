@@ -13,8 +13,8 @@ from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-import wandb
 
+import wandb
 from generics import Generics
 from utils.preprocessing_utils import log_transform, outlier_filter
 
@@ -123,7 +123,14 @@ def combine_features_with_targets(features, targets, columns_prefix="PC"):
 
 
 def train_model(
-    train_df, val_df, config, model_config, trainer_config, model_name, target
+    train_df,
+    val_df,
+    config,
+    model_config,
+    trainer_config,
+    model_name,
+    target,
+    num_workers=4,
 ):
     model_target_dict = {}
     model_path = os.path.join(config.model_save_dir, f"{model_name}_{target}.pth")
@@ -134,15 +141,26 @@ def train_model(
         data_config = DataConfig(
             target=[target],
             continuous_cols=config.TABULAR_COLUMNS,
+            num_workers=num_workers,
         )
-        optimizer_config = OptimizerConfig()
+        optimizer_config = OptimizerConfig(
+            lr_scheduler_monitor_metric="r2",
+            lr_scheduler="CosineAnnealingLR",
+            lr_scheduler_params={"T_max": 10},
+        )
+        trainer_config.checkpoints_name = f"{model_name}_{target}"
         tabular_model = TabularModel(
             data_config=data_config,
             model_config=model_config,
             optimizer_config=optimizer_config,
             trainer_config=trainer_config,
         )
-        tabular_model.fit(train=train_df, validation=val_df)
+        from torchmetrics.regression import R2Score
+        tabular_model.fit(
+            train=train_df,
+            validation=val_df,
+            loss = R2Score(),
+        )
         logger.info(f"Saved model for {target} to {model_path}")
     model_target_dict[target] = tabular_model
     return model_target_dict
@@ -152,10 +170,10 @@ def predict_single(model_target_dict, x, config, targetValue):
     y_pred = np.zeros((1, config.N_TARGETS))
     x_df = pd.DataFrame([x], columns=config.TABULAR_COLUMNS)
     for i, target in enumerate(Generics.TARGET_COLUMNS):
-        if target in model_target_dict :
-          if target == targetValue:
-            model = model_target_dict[target]
-            y_pred[:, i] = model.predict(x_df).values
+        if target in model_target_dict:
+            if target == targetValue:
+                model = model_target_dict[target]
+                y_pred[:, i] = model.predict(x_df).values
         else:
             y_pred[:, i] = 0.0
     return y_pred
@@ -196,23 +214,24 @@ def non_pytorch_r2_loss(y_true, y_pred, global_y_mean, eps=1e-6):
     r2 = np.mean(ss_res / ss_total)
     return r2
 
+
 def plot_and_log_correlation_heatmaps(config, features, before_pca):
     if not config.PLOT_COR_HEATMAP:
         return
 
     pca_suffix = "Before PCA" if before_pca else "After PCA"
     names = {
-        'train': f"Train Features Correlation ({pca_suffix})",
-        'val': f"Validation Features Correlation ({pca_suffix})",
-        'test': f"Test Features Correlation ({pca_suffix})",
+        "train": f"Train Features Correlation ({pca_suffix})",
+        "val": f"Validation Features Correlation ({pca_suffix})",
+        "test": f"Test Features Correlation ({pca_suffix})",
     }
     image_names = {
-        'train': f"train_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
-        'val': f"val_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
-        'test': f"test_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
+        "train": f"train_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
+        "val": f"val_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
+        "test": f"test_features_corr_{pca_suffix.replace(' ', '_').lower()}.png",
     }
 
-    for key in ['train', 'val', 'test']:
+    for key in ["train", "val", "test"]:
         plot_heatmap_and_correlation(
             features[key],
             names[key],
@@ -222,11 +241,13 @@ def plot_and_log_correlation_heatmaps(config, features, before_pca):
     if config.WANDB:
         wandb.log(
             {
-                names['train']: wandb.Image(image_names['train']),
-                names['val']: wandb.Image(image_names['val']),
-                names['test']: wandb.Image(image_names['test']),
+                names["train"]: wandb.Image(image_names["train"]),
+                names["val"]: wandb.Image(image_names["val"]),
+                names["test"]: wandb.Image(image_names["test"]),
             }
         )
+
+
 def evaluate_model_on_val(model_target_dict, val_df, config, model_name, targetValue):
     y_true = val_df[config.TARGET_COLUMNS].values
     y_pred = np.zeros_like(y_true)
@@ -267,8 +288,12 @@ def generate_ensemble_submission(test_df, config):
 
             for model_name in tqdm(models, desc=f"Processing models for {target}"):
                 try:
-                    model_predictions = pd.read_csv(f"{target_without_mean}_{config.MODEL_CSV_DICT[model_name]}")
-                    pred_value = model_predictions.loc[model_predictions["id"] == test_id, target_without_mean].values[0]
+                    model_predictions = pd.read_csv(
+                        f"{target_without_mean}_{config.MODEL_CSV_DICT[model_name]}"
+                    )
+                    pred_value = model_predictions.loc[
+                        model_predictions["id"] == test_id, target_without_mean
+                    ].values[0]
                     target_preds.append(pred_value)
                 except Exception as e:
                     logger.error(f"Error processing {model_name} for {target}: {e}")
