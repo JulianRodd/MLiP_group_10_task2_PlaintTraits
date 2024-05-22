@@ -93,10 +93,9 @@ def set_seeds(seed=42):
 
 def scale_data(train_df, val_df, test_df, columns):
     scaler = StandardScaler()
-    for col in columns:
-        train_df[col] = scaler.fit_transform(train_df[col].values.reshape(-1, 1))
-        val_df[col] = scaler.transform(val_df[col].values.reshape(-1, 1))
-        test_df[col] = scaler.transform(test_df[col].values.reshape(-1, 1))
+    train_df[columns] = scaler.fit_transform(train_df[columns])
+    val_df[columns] = scaler.transform(val_df[columns])
+    test_df[columns] = scaler.transform(test_df[columns])
     return train_df, val_df, test_df, scaler
 
 
@@ -166,39 +165,31 @@ def train_model(
     return model_target_dict
 
 
-def predict_single(model_target_dict, x, config, targetValue):
-    y_pred = np.zeros((1, config.N_TARGETS))
-    x_df = pd.DataFrame([x], columns=config.TABULAR_COLUMNS)
+def predict_batch(model_target_dict, df, config, targetValue):
+    x_df = df[config.TABULAR_COLUMNS]
+    y_pred = np.zeros((len(df), config.N_TARGETS))
     for i, target in enumerate(Generics.TARGET_COLUMNS):
-        if target in model_target_dict:
-            if target == targetValue:
-                model = model_target_dict[target]
-                y_pred[:, i] = model.predict(x_df).values
+        if target in model_target_dict and target == targetValue:
+            model = model_target_dict[target]
+            y_pred[:, i] = model.predict(x_df).values.flatten()
         else:
             y_pred[:, i] = 0.0
     return y_pred
 
 
-def predict_batch(model_target_dict, df, config, targetValue):
-    predictions = []
-    for _, row in tqdm(df.iterrows(), total=len(df)):
-        x_sample = row[config.TABULAR_COLUMNS].values
-        y_pred = predict_single(model_target_dict, x_sample, config, targetValue)
-        predictions.append(y_pred)
-    return predictions
-
-
 def generate_submission(test_df, predictions, config, SCALER, filename, target):
+    inverse_preds = SCALER.inverse_transform(predictions)
     submission_rows = []
-    for y_pred, test_id in zip(predictions, test_df["id"]):
+
+    for y_pred, test_id in zip(inverse_preds, test_df["id"]):
         row = {"id": test_id}
-        inverse_pred = SCALER.inverse_transform(y_pred)
-        for k, v in zip(config.TARGET_COLUMNS, inverse_pred[0]):
+        for k, v in zip(config.TARGET_COLUMNS, y_pred):
             if k in config.LOG_FEATURES:
                 row[k.replace("_mean", "")] = 10**v
             else:
                 row[k.replace("_mean", "")] = v
         submission_rows.append(row)
+
     submission_df = pd.DataFrame(submission_rows)
     target_without_mean = target.replace("_mean", "")
     filename = f"{target_without_mean}_{filename}"
@@ -249,10 +240,9 @@ def plot_and_log_correlation_heatmaps(config, features, before_pca):
 
 
 def evaluate_model_on_val(model_target_dict, val_df, config, model_name, targetValue):
+    x_val = val_df[config.TABULAR_COLUMNS].values
     y_true = val_df[config.TARGET_COLUMNS].values
-    y_pred = np.zeros_like(y_true)
-    for i, row in enumerate(tqdm(val_df[config.TABULAR_COLUMNS].values)):
-        y_pred[i] = predict_single(model_target_dict, row, config, targetValue)
+    y_pred = predict_batch(model_target_dict, val_df, config, targetValue)
 
     if np.isnan(y_pred).any():
         logger.warning(
@@ -261,7 +251,7 @@ def evaluate_model_on_val(model_target_dict, val_df, config, model_name, targetV
         y_pred = np.nan_to_num(y_pred, nan=np.nanmean(y_pred))
     global_y_mean = np.mean(y_true, axis=0)
     r2 = non_pytorch_r2_loss(y_true, y_pred, global_y_mean)
-    results = {"model": model_name, "Overall R2": r2}
+    results = {"model": f"{model_name}_{targetValue}", "Overall R2": r2}
 
     for i, target in enumerate(config.TARGET_COLUMNS):
         r2_individual = r2_score(y_true[:, i], y_pred[:, i])
@@ -282,6 +272,9 @@ def generate_ensemble_submission(test_df, config):
     for idx, test_id in enumerate(tqdm(test_df["id"], desc="Processing test ids")):
         row = {"id": test_id}
         for target in config.TARGET_COLUMNS:
+            if config.MODEL_ENSEMBLE_DICT.get(target) is None:
+                logger.warning(f"No models found for {target}. Skipping.")
+                continue
             models = config.MODEL_ENSEMBLE_DICT[target]
             target_preds = []
             target_without_mean = target.replace("_mean", "")
