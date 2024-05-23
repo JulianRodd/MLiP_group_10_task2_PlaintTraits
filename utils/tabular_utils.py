@@ -154,11 +154,9 @@ def train_model(
             optimizer_config=optimizer_config,
             trainer_config=trainer_config,
         )
-        from torchmetrics.regression import R2Score
         tabular_model.fit(
             train=train_df,
             validation=val_df,
-            loss = R2Score(),
         )
         logger.info(f"Saved model for {target} to {model_path}")
     model_target_dict[target] = tabular_model
