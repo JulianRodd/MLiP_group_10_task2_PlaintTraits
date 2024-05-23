@@ -268,7 +268,6 @@ def ensemble_predictions(models_predictions, config):
 def generate_ensemble_submission(test_df, config):
     ensembled_rows = []
 
-    logger.info("Starting ensemble submission generation.")
     for idx, test_id in enumerate(tqdm(test_df["id"], desc="Processing test ids")):
         row = {"id": test_id}
         for target in config.TARGET_COLUMNS:
@@ -279,7 +278,7 @@ def generate_ensemble_submission(test_df, config):
             target_preds = []
             target_without_mean = target.replace("_mean", "")
 
-            for model_name in tqdm(models, desc=f"Processing models for {target}"):
+            for model_name in models:
                 try:
                     model_predictions = pd.read_csv(
                         f"{target_without_mean}_{config.MODEL_CSV_DICT[model_name]}"
@@ -295,11 +294,11 @@ def generate_ensemble_submission(test_df, config):
             row[target_without_mean] = ensembled_pred
 
         ensembled_rows.append(row)
-        logger.info(f"Processed {idx + 1}/{len(test_df)} test ids.")
+        # logger.info(f"Processed {idx + 1}/{len(test_df)} test ids.")
 
     ensemble_df = pd.DataFrame(ensembled_rows)
     ensemble_df.to_csv(config.MODEL_CSV_DICT["ensemble"], index=False)
-    logger.info("Ensemble submission saved to ensemble_submission.csv")
+    # logger.info("Ensemble submission saved to ensemble_submission.csv")
 
 
 def plot_heatmap_and_correlation(data, title, output_path):
