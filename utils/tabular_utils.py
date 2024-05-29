@@ -1,6 +1,6 @@
 import logging
 import os
-
+from torchmetrics.regression import R2Score
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -157,10 +157,12 @@ def train_model(
             lr_scheduler_params={"T_max": 10},
         )
         trainer_config.checkpoints_name = f"{model_name}_{target}"
+        metric = R2Score()
+
         tabular_model = TabularModel(
             data_config=data_config,
             model_config=model_config,
-            loss=torch.nn.MSELoss(),
+            loss=metric,
             optimizer_config=optimizer_config,
             trainer_config=trainer_config,
         )
