@@ -12,7 +12,6 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
-
 import wandb
 from generics import Generics
 from utils.preprocessing_utils import log_transform, outlier_filter
@@ -30,6 +29,10 @@ def prep_dataset(
     filepath, size=None, train_size=0.8, seed=42, tabular_only=False, vit_features=None
 ):
     df = pd.read_csv(filepath)
+    for column in Generics.TARGET_COLUMNS:
+      lower_quantile = df[column].quantile(0.005)
+      upper_quantile = df[column].quantile(0.985)
+      df = df[(df[column] >= lower_quantile) & (df[column] <= upper_quantile)]
     if vit_features is not None:
         vit_features = pd.read_csv(vit_features)
         df = pd.merge(df, vit_features, on="id", how="left")
@@ -94,11 +97,12 @@ def scale_data(train_df, val_df, test_df, columns):
     scaler = StandardScaler()
     train_df[columns] = scaler.fit_transform(train_df[columns])
     val_df[columns] = scaler.transform(val_df[columns])
-    test_df[columns] = scaler.transform(test_df[columns])
+    # test_df[columns] = scaler.transform(test_df[columns])
     return train_df, val_df, test_df, scaler
 
 
 def log_transform_data(df, columns):
+
     return log_transform(df, columns=columns)
 
 
