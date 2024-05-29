@@ -9,7 +9,6 @@ import torch
 from pytorch_tabular import TabularModel
 from pytorch_tabular.config import DataConfig, OptimizerConfig, ExperimentConfig
 from sklearn.decomposition import PCA
-from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
@@ -157,12 +156,10 @@ def train_model(
             lr_scheduler_params={"T_max": 10},
         )
         trainer_config.checkpoints_name = f"{model_name}_{target}"
-        metric = R2Score()
 
         tabular_model = TabularModel(
             data_config=data_config,
             model_config=model_config,
-            loss=metric,
             optimizer_config=optimizer_config,
             trainer_config=trainer_config,
         )
