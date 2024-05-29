@@ -7,7 +7,7 @@ import pandas as pd
 import seaborn as sns
 import torch
 from pytorch_tabular import TabularModel
-from pytorch_tabular.config import DataConfig, OptimizerConfig
+from pytorch_tabular.config import DataConfig, OptimizerConfig, ExperimentConfig
 from sklearn.decomposition import PCA
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
@@ -130,6 +130,7 @@ def train_model(
     model_name,
     target,
     num_workers=4,
+    project_name="Julian_plant-traits-2024",
 ):
     model_target_dict = {}
     model_path = os.path.join(config.model_save_dir, f"{model_name}_{target}.pth")
@@ -137,6 +138,14 @@ def train_model(
         logger.info(f"Loading cached model for {target} from {model_path}")
         tabular_model = TabularModel.load_from_checkpoint(model_path)
     else:
+        experiment_config = ExperimentConfig(
+            project_name=project_name,
+            run_name=f"{model_name}_{target}",
+            exp_watch="gradients",
+            log_target="wandb",
+            log_logits=True,
+        )
+
         data_config = DataConfig(
             target=[target],
             continuous_cols=config.TABULAR_COLUMNS,
@@ -151,6 +160,7 @@ def train_model(
         tabular_model = TabularModel(
             data_config=data_config,
             model_config=model_config,
+            loss=torch.nn.MSELoss(),
             optimizer_config=optimizer_config,
             trainer_config=trainer_config,
         )
